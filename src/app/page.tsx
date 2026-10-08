@@ -90,8 +90,7 @@ export default function Home() {
               <td><strong>{(sectorInvestment / totalInvestment * 100).toFixed(2)}%</strong></td>
               <td colSpan={2}></td>
               <td><strong>{sectorPresent}</strong></td>
-              <td><strong>{sectorGain}</strong></td>
-              className={sectorGain >= 0 ? 'text-green-600' : 'text-red-600'}
+              <td className={sectorGain >= 0 ? 'text-green-600' : 'text-red-600'}><strong>{sectorGain}</strong></td>
               <td colSpan={2}></td>
             </tr>
           </Fragment>
@@ -104,8 +103,7 @@ export default function Home() {
           <td><strong>100%</strong></td>
           <td colSpan={2}></td>
           <td><strong>{totalPresentValue}</strong></td>
-          <td><strong>{totalGain}</strong></td>
-          className={totalGain >= 0 ? 'text-green-600' : 'text-red-600'}
+          <td className={totalGain >= 0 ? 'text-green-600' : 'text-red-600'}><strong>{totalGain}</strong></td>
           <td colSpan={2}></td>
         </tr>
         </tbody>
