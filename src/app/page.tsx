@@ -1,69 +1,117 @@
-import Image from "next/image";
+'use client';
+import { useState, useEffect, Fragment } from 'react';
+import { LiveQuote, Holding} from '@/types/portfolio';
+import { holdings } from "@/data/holdings";
+import { getInvestment, getPortfolioPercent, getPresentValue, getGainLoss } from '@/lib/calculations';
+
+const bySector: Record<string, Holding[]> = {};
+for (const h of holdings) {
+  if (!bySector[h.sector]) bySector[h.sector] = [];
+  bySector[h.sector].push(h);
+}
+
 
 export default function Home() {
+  const totalInvestment = holdings.reduce((sum, h) => sum + getInvestment(h), 0);
+  const [quotes, setQuotes] = useState<Record<string, LiveQuote> | null>(null);
+
+  useEffect(() => {
+    const load = () => {
+      fetch('/api/quotes')
+        .then((res) => res.json())
+        .then((data) => setQuotes(data.quotes));
+    };
+  load();
+  const id = setInterval(load, 15000);
+  return () => clearInterval(id);
+  }, []);
+  const totalGain = holdings.reduce((sum, h) => {
+    const q = h.yahooSymbol ? quotes?.[h.yahooSymbol] : undefined;
+    return sum + (q ? getGainLoss(h, q.cmp) : 0);
+  }, 0);
+
+  const totalPresentValue = totalInvestment + totalGain;
+
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+     <main className="p-6">
+      <h1>Holdings</h1>
+      <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr>
+            <th>Particulars</th>
+            <th>Purchase Price</th>
+            <th>Qty</th>
+            <th>Investment</th>
+            <th>Portfolio (%)</th>
+            <th>NSE/BSE</th>
+            <th>CMP</th>
+            <th>Present Value</th>
+            <th>Gain/Loss</th>
+            <th>P/E Ratio</th>
+            <th>Latest Earnings</th>
+          </tr>
+        </thead>
+        <tbody>
+        {Object.entries(bySector).map(([sector, items]) => {
+          const sectorInvestment = items.reduce((sum, h) => sum + getInvestment(h), 0);
+          const sectorGain = items.reduce((sum, h) => {
+            const q = h.yahooSymbol ? quotes?.[h.yahooSymbol] : undefined;
+            const gain = q ? getGainLoss(h, q.cmp) : 0;
+            return sum + (q ? getGainLoss(h, q.cmp) : 0);
+          }, 0);
+          const sectorPresent = (sectorInvestment + sectorGain);
+          return (
+          <Fragment key={sector}>
+            <tr><td colSpan={11} className="bg-gray-100 pt-4"><strong>{sector}</strong></td></tr>
+            {items.map((holding) => {
+              const q = holding.yahooSymbol ? quotes?.[holding.yahooSymbol] : undefined;
+              const gain = q ? getGainLoss(holding, q.cmp) : null;
+              return (
+                <tr key={holding.name}>
+                  <td>{holding.name}</td>
+                  <td>{holding.purchasePrice}</td>
+                  <td>{holding.quantity}</td>
+                  <td>{getInvestment(holding)}</td>
+                  <td>{getPortfolioPercent(holding, totalInvestment).toFixed(2)}%</td>
+                  <td>{holding.exchangeCode}</td>
+                  <td>{q?.cmp ?? '—'}</td>
+                  <td>{q ? getPresentValue(holding, q.cmp) : '—'}</td>
+                  <td className={gain === null ? '' : gain >= 0 ? 'text-green-600' : 'text-red-600'}>{gain ?? '—'}</td>
+                  <td>{q?.peRatio ?? '—'}</td>
+                  <td>{q?.latestEarnings ?? '—'}</td>
+                </tr>
+              );
+            })}
+            <tr>
+              <td colSpan={3}><strong>{sector} Total</strong></td>
+              <td><strong>{sectorInvestment}</strong></td>
+              <td><strong>{(sectorInvestment / totalInvestment * 100).toFixed(2)}%</strong></td>
+              <td colSpan={2}></td>
+              <td><strong>{sectorPresent}</strong></td>
+              <td><strong>{sectorGain}</strong></td>
+              className={sectorGain >= 0 ? 'text-green-600' : 'text-red-600'}
+              <td colSpan={2}></td>
+            </tr>
+          </Fragment>
+          );
+        })}
+        {/* Overall total row */}
+        <tr>
+          <td colSpan={3}><strong>Overall Total</strong></td>
+          <td><strong>{totalInvestment}</strong></td>
+          <td><strong>100%</strong></td>
+          <td colSpan={2}></td>
+          <td><strong>{totalPresentValue}</strong></td>
+          <td><strong>{totalGain}</strong></td>
+          className={totalGain >= 0 ? 'text-green-600' : 'text-red-600'}
+          <td colSpan={2}></td>
+        </tr>
+        </tbody>
+      </table>
+      </div>
+    </main>
   );
 }
+
